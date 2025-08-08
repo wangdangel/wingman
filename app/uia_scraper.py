@@ -1,50 +1,91 @@
 import uiautomation as uia
 
-PHONE_TITLES = ["Phone Link","Link to Windows","Your Phone"]
+PHONE_TITLES = ["Phone Link", "Link to Windows", "Your Phone"]
 
-def get_phone_window(timeout=0.5):
-    desktop = uia.GetRootControl()
-    phone = desktop.WindowControl(searchDepth=2, NameRegex="(Phone Link|Link to Windows|Your Phone)")
-    if phone.Exists(timeout, 0):
-        return phone
-    # broaden search
-    for w in desktop.GetChildren():
-        if w.ControlType == "WindowControl" and any(t in (w.Name or "") for t in PHONE_TITLES):
-            return w
+def get_phone_window(timeout=0.8):
+    # Try name regex first
+    w = uia.WindowControl(searchDepth=8, NameRegex="(Phone Link|Link to Windows|Your Phone)")
+    if w.Exists(timeout, 0):
+        return w
+    # Fallback: scan top-level windows
+    root = uia.GetRootControl()
+    for win in root.GetChildren():
+        try:
+            name = (win.Name or "")
+        except Exception:
+            continue
+        if isinstance(win, uia.WindowControl) and any(t in name for t in PHONE_TITLES):
+            return win
     return None
 
-def read_text_from_descendants(ctrl, min_text=6):
-    texts = ctrl.FindAll(3, lambda x: x.ControlType=="TextControl")
-    # join visible names
+def _iter_descendants(ctrl, depth=0, max_depth=5):
+    """Breadth-ish traversal using GetChildren() (FindAll doesn't exist in this lib)."""
+    if depth > max_depth or ctrl is None:
+        return
+    try:
+        children = ctrl.GetChildren()
+    except Exception:
+        return
+    for ch in children:
+        yield ch
+        yield from _iter_descendants(ch, depth + 1, max_depth)
+
+def _collect_text(ctrl, max_depth=5):
     lines = []
-    for t in texts:
-        name = (t.Name or "").strip()
-        if name:
-            lines.append(name)
-    if len(lines) >= min_text:
-        return "\n".join(lines)
-    return None
+    for node in _iter_descendants(ctrl, max_depth=max_depth):
+        try:
+            if isinstance(node, uia.TextControl):
+                s = (node.Name or "").strip()
+                if s:
+                    lines.append(s)
+        except Exception:
+            continue
+    return lines
 
 def read_chat_text():
+    """Try to find a container with lots of TextControls (the thread area)."""
     w = get_phone_window()
-    if not w: return None
-    # heuristically find a pane/list with lots of text
-    candidates = w.FindAll(10, lambda c: c.ControlType in ("ListControl","PaneControl"))
-    best = None
+    if not w:
+        return None
+
+    # Candidate containers we expect to hold the conversation
+    candidates = []
+    for node in _iter_descendants(w, max_depth=4):
+        if isinstance(node, (uia.ListControl, uia.PaneControl, uia.GroupControl)):
+            candidates.append(node)
+
+    # Score candidates by how many text nodes they contain
+    best_text = None
+    best_score = -1
     for c in candidates:
-        txt = read_text_from_descendants(c, min_text=8)
-        if txt:
-            return txt
+        lines = _collect_text(c, max_depth=2)
+        score = len(lines)
+        if score > best_score:
+            best_score = score
+            best_text = lines
+
+    if best_text and best_score >= 8:
+        return "\n".join(best_text)
     return None
 
 def read_profile_text():
-    # In Phone Link, profile may be a side pane; try scanning for dense text on left
+    """Heuristic: find a smaller/denser text block likely to be the profile/bio area."""
     w = get_phone_window()
-    if not w: return None
-    panes = w.FindAll(10, lambda c: c.ControlType in ("PaneControl","GroupControl"))
-    for p in panes:
-        txt = read_text_from_descendants(p, min_text=5)
-        if txt and len(txt) < 3000:
-            # crude heuristic: shorter block likely profile/about info
-            return txt
+    if not w:
+        return None
+
+    blocks = []
+    for node in _iter_descendants(w, max_depth=3):
+        if isinstance(node, (uia.PaneControl, uia.GroupControl)):
+            lines = _collect_text(node, max_depth=1)
+            if 5 <= len(lines) <= 200:
+                text = "\n".join(lines)
+                # crude filters to avoid entire chat threads
+                if len(text) < 3000:
+                    blocks.append((len(lines), text))
+
+    # Pick the smallest “reasonable” block (more likely profile)
+    if blocks:
+        blocks.sort(key=lambda t: t[0])
+        return blocks[0][1]
     return None

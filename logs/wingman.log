@@ -1,0 +1,6 @@
+2025-08-08 15:44:22,397 [INFO] comtypes.client._generate: Could not import comtypes.gen._944DE083_8FB8_45CF_BCB7_C477ACB2F897_0_1_0: No module named 'comtypes.gen._944DE083_8FB8_45CF_BCB7_C477ACB2F897_0_1_0'
+2025-08-08 15:44:22,401 [INFO] comtypes.client._generate: # Generating comtypes.gen._944DE083_8FB8_45CF_BCB7_C477ACB2F897_0_1_0
+2025-08-08 15:44:22,455 [INFO] comtypes.client._generate: # Generating comtypes.gen.UIAutomationClient
+2025-08-08 15:44:22,461 [INFO] comtypes.client._generate: Could not import comtypes.gen._00020430_0000_0000_C000_000000000046_0_2_0: No module named 'comtypes.gen._00020430_0000_0000_C000_000000000046_0_2_0'
+2025-08-08 15:44:22,461 [INFO] comtypes.client._generate: # Generating comtypes.gen._00020430_0000_0000_C000_000000000046_0_2_0
+2025-08-08 15:44:22,469 [INFO] comtypes.client._generate: # Generating comtypes.gen.stdole
