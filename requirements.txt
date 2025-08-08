@@ -1,0 +1,11 @@
+uiautomation
+pywin32
+pillow
+pytesseract
+mss
+pydantic
+requests
+pyyaml
+opencv-python
+pyautogui
+psutil

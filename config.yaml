@@ -1,0 +1,57 @@
+app_name: "Wingman"
+target:
+  default: "phone_link"     # phone_link | browser_edge | browser_chrome | auto
+  paste_mode: "focus_phone_link"  # focus_phone_link | paste_at_cursor
+targets:
+  phone_link:
+    window_titles: ["Phone Link","Link to Windows","Your Phone"]
+    mode: "uia_first_ocr_fallback"
+    chat_crop: { left: 0.28, top: 0.12, right: 0.92, bottom: 0.85 }
+    profile_crop: { left: 0.05, top: 0.10, right: 0.40, bottom: 0.90 }
+  browser_edge:
+    process_name: "msedge.exe"
+    url_patterns: ["*tinder.com/*","*hinge.co/*","*bumble.com/*"]
+    mode: "ocr_only"
+    chat_crop: { left: 0.22, top: 0.14, right: 0.88, bottom: 0.90 }
+    profile_crop: { left: 0.04, top: 0.10, right: 0.40, bottom: 0.92 }
+  browser_chrome:
+    process_name: "chrome.exe"
+    url_patterns: ["*tinder.com/*","*hinge.co/*","*bumble.com/*"]
+    mode: "ocr_only"
+    chat_crop: { left: 0.22, top: 0.14, right: 0.88, bottom: 0.90 }
+    profile_crop: { left: 0.04, top: 0.10, right: 0.40, bottom: 0.92 }
+model:
+  base_url: "http://localhost:11434/v1"
+  model_name: "gpt-oss:latest"
+  bearer_token: ""
+  temperature: 0.6
+  max_tokens: 512
+  use_tools: true
+scraping:
+  prefer_uia: true
+  ocr_fallback: true
+  ocr_lang: "eng"
+  monitors: []
+  active_monitor: null
+ui:
+  suggestions: 5
+  ask_question_default: "often"
+  max_reply_chars: 1200
+  topmost: true
+  show_tray_icon: false
+behavior:
+  throttle_seconds_per_chat: 8
+  allow_explicit: true
+storage:
+  base_dir: "./data"
+  people_dir: "./data/people"
+  sqlite_path: "./data/wingman.db"
+logging:
+  dir: "./logs"
+  level: "INFO"
+integrations:
+  n8n:
+    enabled: false
+    webhook_url: ""
+ahk:
+  exe_path: "C:\\Program Files\\AutoHotkey\\AutoHotkey.exe"
