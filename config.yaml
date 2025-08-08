@@ -54,12 +54,14 @@ targets:
       right: 0.4
       bottom: 0.92
 model:
-  base_url: http://localhost:11434/v1
-  model_name: gpt-oss:latest
-  bearer_token: ''
+  base_url: "http://localhost:11434"
+  model_name: "gpt-oss:latest"
   temperature: 0.6
   max_tokens: 512
-  use_tools: true
+  keep_alive: "45m"            # keep model in RAM
+  request_timeout_seconds: 300 # allow time for cold start
+  use_tools: false             # (we’ll add tools later; off for now)
+
 scraping:
   prefer_uia: true
   ocr_fallback: true
