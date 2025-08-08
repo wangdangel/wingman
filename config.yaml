@@ -5,20 +5,20 @@ target:
 targets:
   phone_link:
     window_titles:
-    - Phone Link
+    - Tinder
     - Link to Windows
     - Your Phone
     mode: uia_first_ocr_fallback
     chat_crop:
-      left: 0.28
+      left: 0.6
       top: 0.12
       right: 0.92
       bottom: 0.85
     profile_crop:
-      left: 0.05
-      top: 0.1
-      right: 0.4
-      bottom: 0.9
+      left: 0.6
+      top: 0.08
+      right: 0.98
+      bottom: 0.92
   browser_edge:
     process_name: msedge.exe
     url_patterns:

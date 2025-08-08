@@ -1,7 +1,25 @@
+# app/uia_scraper.py
 import uiautomation as uia
 
 PHONE_TITLES = ["Phone Link", "Link to Windows", "Your Phone"]
 
+# Some versions export UIAutomationInitializerInThread; use a no-op fallback if not.
+try:
+    UIA_INIT = uia.UIAutomationInitializerInThread
+except AttributeError:
+    class _Noop:
+        def __enter__(self): return self
+        def __exit__(self, *exc): return False
+    UIA_INIT = _Noop
+
+def _with_uia(fn):
+    def wrapper(*args, **kwargs):
+        # Ensure COM/UIA is initialized in THIS thread
+        with UIA_INIT():
+            return fn(*args, **kwargs)
+    return wrapper
+
+@_with_uia
 def get_phone_window(timeout=0.8):
     # Try name regex first
     w = uia.WindowControl(searchDepth=8, NameRegex="(Phone Link|Link to Windows|Your Phone)")
@@ -19,7 +37,7 @@ def get_phone_window(timeout=0.8):
     return None
 
 def _iter_descendants(ctrl, depth=0, max_depth=5):
-    """Breadth-ish traversal using GetChildren() (FindAll doesn't exist in this lib)."""
+    """Traverse using GetChildren() (FindAll doesn't exist here)."""
     if depth > max_depth or ctrl is None:
         return
     try:
@@ -42,19 +60,18 @@ def _collect_text(ctrl, max_depth=5):
             continue
     return lines
 
+@_with_uia
 def read_chat_text():
-    """Try to find a container with lots of TextControls (the thread area)."""
+    """Find a container with lots of TextControls (the thread area)."""
     w = get_phone_window()
     if not w:
         return None
 
-    # Candidate containers we expect to hold the conversation
     candidates = []
     for node in _iter_descendants(w, max_depth=4):
         if isinstance(node, (uia.ListControl, uia.PaneControl, uia.GroupControl)):
             candidates.append(node)
 
-    # Score candidates by how many text nodes they contain
     best_text = None
     best_score = -1
     for c in candidates:
@@ -68,6 +85,7 @@ def read_chat_text():
         return "\n".join(best_text)
     return None
 
+@_with_uia
 def read_profile_text():
     """Heuristic: find a smaller/denser text block likely to be the profile/bio area."""
     w = get_phone_window()
@@ -80,12 +98,10 @@ def read_profile_text():
             lines = _collect_text(node, max_depth=1)
             if 5 <= len(lines) <= 200:
                 text = "\n".join(lines)
-                # crude filters to avoid entire chat threads
-                if len(text) < 3000:
+                if len(text) < 3000:  # avoid whole chat transcripts
                     blocks.append((len(lines), text))
 
-    # Pick the smallest “reasonable” block (more likely profile)
     if blocks:
-        blocks.sort(key=lambda t: t[0])
+        blocks.sort(key=lambda t: t[0])  # prefer smaller blocks (bios)
         return blocks[0][1]
     return None

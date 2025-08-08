@@ -4,3 +4,44 @@
 2025-08-08 15:44:22,461 [INFO] comtypes.client._generate: Could not import comtypes.gen._00020430_0000_0000_C000_000000000046_0_2_0: No module named 'comtypes.gen._00020430_0000_0000_C000_000000000046_0_2_0'
 2025-08-08 15:44:22,461 [INFO] comtypes.client._generate: # Generating comtypes.gen._00020430_0000_0000_C000_000000000046_0_2_0
 2025-08-08 15:44:22,469 [INFO] comtypes.client._generate: # Generating comtypes.gen.stdole
+2025-08-08 16:21:35,747 [ERROR] wingman: Background task error
+Traceback (most recent call last):
+  File "C:\code\wingman\app\ui.py", line 292, in _run_and_finish
+    result = work_fn()
+             ^^^^^^^^^
+  File "C:\code\wingman\app\ui.py", line 170, in work
+    bio, img = read_profile(self.cfg)
+               ^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\code\wingman\app\orchestrator.py", line 15, in read_profile
+    bio = uia_scraper.read_profile_text()
+          ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\code\wingman\app\uia_scraper.py", line 73, in read_profile_text
+    w = get_phone_window()
+        ^^^^^^^^^^^^^^^^^^
+  File "C:\code\wingman\app\uia_scraper.py", line 8, in get_phone_window
+    if w.Exists(timeout, 0):
+       ^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\leviw\miniconda3\envs\wingman\Lib\site-packages\uiautomation\uiautomation.py", line 7132, in Exists
+    control = FindControl(self.searchFromControl, self._CompareFunction, self.searchDepth, False, self.foundIndex)
+              ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\leviw\miniconda3\envs\wingman\Lib\site-packages\uiautomation\uiautomation.py", line 10613, in FindControl
+    control = GetRootControl()
+              ^^^^^^^^^^^^^^^^
+  File "C:\Users\leviw\miniconda3\envs\wingman\Lib\site-packages\uiautomation\uiautomation.py", line 10379, in GetRootControl
+    control = Control.CreateControlFromElement(_AutomationClient.instance().IUIAutomation.GetRootElement())
+                                               ^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\leviw\miniconda3\envs\wingman\Lib\site-packages\uiautomation\uiautomation.py", line 57, in instance
+    cls._instance = cls()
+                    ^^^^^
+  File "C:\Users\leviw\miniconda3\envs\wingman\Lib\site-packages\uiautomation\uiautomation.py", line 76, in __init__
+    raise ex
+  File "C:\Users\leviw\miniconda3\envs\wingman\Lib\site-packages\uiautomation\uiautomation.py", line 65, in __init__
+    self.IUIAutomation = comtypes.client.CreateObject("{ff48dba4-60ef-4201-aa87-54103eef594e}", interface=self.UIAutomationCore.IUIAutomation)
+                         ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\leviw\miniconda3\envs\wingman\Lib\site-packages\comtypes\client\_create.py", line 99, in CreateObject
+    obj = comtypes.CoCreateInstance(clsid, clsctx=clsctx, interface=interface)
+          ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\leviw\miniconda3\envs\wingman\Lib\site-packages\comtypes\_post_coinit\misc.py", line 139, in CoCreateInstance
+    _CoCreateInstance(byref(clsid), punkouter, clsctx, byref(iid), byref(p))
+  File "_ctypes/callproc.c", line 1000, in GetResult
+OSError: [WinError -2147221008] CoInitialize has not been called
