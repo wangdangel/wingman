@@ -21,10 +21,10 @@ def _enum_monitor_rects() -> List[Tuple[int, int, int, int]]:
 
     def _cb(hmon, hdc, lprc, data):
         info = win32api.GetMonitorInfo(hmon)
-        rects.append(tuple(info["Monitor"]))
+        rects.append(info["Monitor"])
         return True
 
-    win32api.EnumDisplayMonitors(None, None, _cb, None)
+    win32api.EnumDisplayMonitors(_cb, None)
     return rects
 
 

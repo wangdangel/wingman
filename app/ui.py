@@ -15,9 +15,8 @@ from .logging_setup import setup_logging
 from .debug_tools import save_ocr_previews
 from .model_client import warm_model
 from .crop_tuner import CropTuner
-from .focus_calibrate import FocusCalibrator  # <-- NEW
-from .ai_orchestrate import ai_type_message
-
+from .focus_calibrate import FocusCalibrator
+from .ai_orchestrate import ai_type_message  # AI control (focus + type)
 
 logger = setup_logging("./logs", "INFO")
 
@@ -80,12 +79,15 @@ class WingmanUI:
         self.btn_preview = ttk.Button(row2, text="Save OCR Previews", command=self.on_preview)
         self.btn_preview.pack(side="left", padx=(0, 6))
 
-        # New: Set Focus Point (click the chat box once, we’ll remember and use it)
         self.btn_setfocus = ttk.Button(row2, text="Set Focus Point", command=self.on_set_focus)
         self.btn_setfocus.pack(side="left", padx=(0, 6))
 
         self.btn_tuner = ttk.Button(row2, text="Crop Tuner", command=self.on_tuner)
         self.btn_tuner.pack(side="left", padx=(0, 6))
+
+        # Right side: AI Type and manual Paste
+        self.btn_ai_type = ttk.Button(row2, text="AI Type", command=self.on_ai_type)
+        self.btn_ai_type.pack(side="right", padx=(6, 0))
 
         self.btn_paste = ttk.Button(row2, text="Paste", command=self.on_paste)
         self.btn_paste.pack(side="right")
@@ -132,6 +134,7 @@ class WingmanUI:
             self.btn_preview,
             self.btn_setfocus,
             self.btn_tuner,
+            self.btn_ai_type,
             self.btn_paste,
             self.btn_rerun,
             self.target_combo,
@@ -154,6 +157,7 @@ class WingmanUI:
             self.btn_preview,
             self.btn_setfocus,
             self.btn_tuner,
+            self.btn_ai_type,
             self.btn_paste,
             self.btn_rerun,
             self.target_combo,
@@ -245,7 +249,6 @@ class WingmanUI:
             messagebox.showinfo("Wingman", "Profile captured.")
 
         threading.Thread(target=self._run_and_finish, args=(work, done), daemon=True).start()
-
     def on_chat(self):
         self.save_target_settings()
         self.disable_ui()
@@ -346,7 +349,7 @@ class WingmanUI:
     def on_tuner(self):
         CropTuner(self.root)
 
-    def on_set_focus(self):  # <-- NEW
+    def on_set_focus(self):
         FocusCalibrator(self.root)
 
     def refresh_list(self):
@@ -367,6 +370,40 @@ class WingmanUI:
         else:
             self.set_status("Inserted text. Press Enter to send.")
             messagebox.showinfo("Wingman", "Inserted text. You can press Enter to send.")
+
+    def on_ai_type(self):
+        self.save_target_settings()
+        sel = self.listbox.curselection()
+        if not sel:
+            messagebox.showwarning("Wingman", "Select a suggestion first.")
+            return
+        text = self.listbox.get(sel[0])
+
+        send_after = messagebox.askyesno("Wingman", "Press Enter to send after typing?")
+
+        self.disable_ui()
+        self.set_status("AI is focusing and typing...")
+
+        def work():
+            # ai_type_message returns (ok, err)
+            return ai_type_message(text, send_after=send_after)
+
+        def done(result, err=None):
+            self.enable_ui()
+            self.set_status("Ready.")
+            if err:
+                messagebox.showerror("Wingman", f"AI control error:\n{err}")
+                return
+            ok, e2 = result
+            if not ok:
+                messagebox.showerror("Wingman", f"AI control failed:\n{e2 or 'Unknown error'}")
+            else:
+                messagebox.showinfo(
+                    "Wingman",
+                    "Inserted via AI (sent)." if send_after else "Inserted via AI.",
+                )
+
+        threading.Thread(target=self._run_and_finish, args=(work, done), daemon=True).start()
 
     # ---------- tiny async runner ----------
     def _run_and_finish(self, work_fn, done_fn):

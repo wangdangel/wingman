@@ -107,8 +107,10 @@ def locate_message_input(hwnd: int, prompt: Optional[str] = None) -> Optional[Tu
     base_url = vcfg.get("base_url", "http://localhost:11434").rstrip("/")
     model    = vcfg.get("model_name", "llava:latest")
     timeout  = int(vcfg.get("request_timeout_seconds", 45))
-    prompt   = (prompt or vcfg.get("prompt") or DEFAULT_PROMPT).strip()
 
+    config_prompt = vcfg.get("prompt")
+    # Ensure we only use the config prompt if it's a string, otherwise fall back.
+    prompt = (prompt or (config_prompt if isinstance(config_prompt, str) else None) or DEFAULT_PROMPT).strip()
     # Full-window screenshot at native size (so VLM coords map 1:1)
     img = screenshot_region(hwnd, crop_pct=None)  # force_full_window in config will ensure whole window
     if img is None:

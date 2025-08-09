@@ -28,13 +28,13 @@ def ai_type_message(message_text: str, send_after: bool = False, title_regex: st
     Returns: (ok, err)
     """
     cfg = load_config()
-    title_regex = title_regex or cfg.get("tools", {}).get("title_regex") or _DEFAULT_TITLE_RE
+    effective_title_regex = title_regex or cfg.get("tools", {}).get("title_regex") or _DEFAULT_TITLE_RE
     per_char = float(cfg.get("input", {}).get("type_per_char_delay_ms", 2)) / 1000.0
 
     # Build a clear user prompt the model can act on with tools:
     ask = {
         "action": "send_message",
-        "title_regex": title_regex,
+        "title_regex": effective_title_regex,
         "text": message_text,
         "send_after": bool(send_after),
         "per_char_delay": per_char,
@@ -55,7 +55,7 @@ def ai_type_message(message_text: str, send_after: bool = False, title_regex: st
 
     # Fallback (no tools on this endpoint, or model refused): do it ourselves.
     try:
-        r1 = focus_window(title_regex=title_regex)
+        r1 = focus_window(title_regex=effective_title_regex)
         if not r1.get("ok"):
             return False, f"focus_window failed: {r1.get('error')}"
         r2 = type_text(message_text, per_char_delay=per_char)
