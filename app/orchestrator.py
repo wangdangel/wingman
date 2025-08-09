@@ -12,6 +12,8 @@ from .memory import DB
 from .profile_store import ensure_person_folder, save_profile, save_chat_history
 from .paste import paste_text
 from .display_detect import get_selected_hwnd
+from .paste import paste_text
+from .display_detect import get_selected_hwnd
 
 log = logging.getLogger("wingman")
 
@@ -162,7 +164,9 @@ def persist_everything(cfg, name_guess, bio, bio_png, chat_text, suggestions):
 def paste_selected(cfg, text: str, paste_mode: str | None = None):
     global _last_paste_ts
     throttle = int(cfg.get("behavior", {}).get("throttle_seconds_per_chat", 0)) or 0
-    ...
+    import time
+    if throttle and (time.time() - _last_paste_ts) < throttle:
+        time.sleep(throttle - (time.time() - _last_paste_ts))
     resolved = paste_mode or cfg.get("target", {}).get("paste_mode", "focus_phone_link")
     hwnd = get_selected_hwnd()
     ok, err = paste_text(text, mode=resolved, window_title="Phone Link", hwnd=hwnd)

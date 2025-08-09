@@ -121,5 +121,22 @@ integrations:
     enabled: false
     webhook_url: ''
 ahk:
-  exe_path: "C:\\Users\\leviw\\AppData\\Local\\Programs\\AutoHotkey\\v2\\AutoHotkey64.exe"
-  paste_strategy: "type"   # "type" | "paste" | "auto"  (use "type" for Phone Link)
+  exe_path: C:\Users\leviw\AppData\Local\Programs\AutoHotkey\v2\AutoHotkey64.exe
+  paste_strategy: type
+input:
+  focus_settle_ms: 400
+  wait_ms_before_type: 1200
+  type_per_char_delay_ms: 20
+  focus_alt_trick: true
+vision:
+  enabled: true
+  base_url: http://10.0.0.246:11434
+  model_name: llava:latest
+  request_timeout_seconds: 45
+  clicks: 1
+  between_click_ms: 80
+  wait_ms_after_click: 350
+  prompt: 'You are looking at a desktop app screenshot. Find the text input field
+    where a user would type a chat message. Return ONLY JSON like {"x":123,"y":456}.
+
+    '

@@ -15,6 +15,9 @@ from .logging_setup import setup_logging
 from .debug_tools import save_ocr_previews
 from .model_client import warm_model
 from .crop_tuner import CropTuner
+from .focus_calibrate import FocusCalibrator  # <-- NEW
+from .ai_orchestrate import ai_type_message
+
 
 logger = setup_logging("./logs", "INFO")
 
@@ -77,6 +80,10 @@ class WingmanUI:
         self.btn_preview = ttk.Button(row2, text="Save OCR Previews", command=self.on_preview)
         self.btn_preview.pack(side="left", padx=(0, 6))
 
+        # New: Set Focus Point (click the chat box once, we’ll remember and use it)
+        self.btn_setfocus = ttk.Button(row2, text="Set Focus Point", command=self.on_set_focus)
+        self.btn_setfocus.pack(side="left", padx=(0, 6))
+
         self.btn_tuner = ttk.Button(row2, text="Crop Tuner", command=self.on_tuner)
         self.btn_tuner.pack(side="left", padx=(0, 6))
 
@@ -123,6 +130,7 @@ class WingmanUI:
             self.btn_chat,
             self.btn_generate,
             self.btn_preview,
+            self.btn_setfocus,
             self.btn_tuner,
             self.btn_paste,
             self.btn_rerun,
@@ -144,6 +152,7 @@ class WingmanUI:
             self.btn_chat,
             self.btn_generate,
             self.btn_preview,
+            self.btn_setfocus,
             self.btn_tuner,
             self.btn_paste,
             self.btn_rerun,
@@ -337,6 +346,9 @@ class WingmanUI:
     def on_tuner(self):
         CropTuner(self.root)
 
+    def on_set_focus(self):  # <-- NEW
+        FocusCalibrator(self.root)
+
     def refresh_list(self):
         self.listbox.delete(0, tk.END)
         for s in self.suggestions:
@@ -353,8 +365,8 @@ class WingmanUI:
         if not ok:
             messagebox.showerror("Wingman", f"Paste failed: {err}")
         else:
-            self.set_status("Pasted. Press Enter to send.")
-            messagebox.showinfo("Wingman", "Pasted. You can press Enter to send.")
+            self.set_status("Inserted text. Press Enter to send.")
+            messagebox.showinfo("Wingman", "Inserted text. You can press Enter to send.")
 
     # ---------- tiny async runner ----------
     def _run_and_finish(self, work_fn, done_fn):
