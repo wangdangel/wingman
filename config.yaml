@@ -4,16 +4,20 @@ target:
   paste_mode: focus_phone_link
 targets:
   phone_link:
+    process_names:
+    - PhoneExperienceHost.exe
+    - YourPhone.exe
+    - YourPhoneAppProxy.exe
     window_titles:
     - Tinder
     - Link to Windows
     - Your Phone
     mode: uia_first_ocr_fallback
     chat_crop:
-      left: 0.6
-      top: 0.12
-      right: 0.92
-      bottom: 0.85
+      left: 0.0
+      top: 0.0
+      right: 1.0
+      bottom: 1.0
     profile_crop:
       left: 0.6
       top: 0.08
@@ -54,7 +58,7 @@ targets:
       right: 0.4
       bottom: 0.92
 model:
-  base_url: http://localhost:11434
+  base_url: http://10.0.0.246:11434
   model_name: gpt-oss:latest
   temperature: 0.6
   max_tokens: 512
@@ -62,11 +66,40 @@ model:
   request_timeout_seconds: 300
   use_tools: false
 scraping:
-  prefer_uia: true
-  ocr_fallback: true
-  ocr_lang: eng
-  monitors: []
-  active_monitor: null
+  scraping: null
+  capture:
+    prefer_dxcam: true
+    fallback_mss: true
+    force_full_window: true
+  prefer_dxcam: true
+  fallback_mss: true
+  output_index_override: null
+  try_all_outputs: true
+  tesseract_path: C:\Program Files\Tesseract-OCR\tesseract.exe
+  monitors:
+  - hmonitor: 827261323
+    left: 2560
+    top: 52
+    right: 4480
+    bottom: 1252
+    width: 1920
+    height: 1200
+    dpiX: 96
+    dpiY: 96
+    scale: 1.0
+  - &id001
+    hmonitor: 2014839895
+    left: 0
+    top: 0
+    right: 2560
+    bottom: 1440
+    width: 2560
+    height: 1440
+    dpiX: 96
+    dpiY: 96
+    scale: 1.0
+  active_monitor: *id001
+  selected_hwnd: null
 ui:
   suggestions: 5
   ask_question_default: often
@@ -88,4 +121,5 @@ integrations:
     enabled: false
     webhook_url: ''
 ahk:
-  exe_path: C:\Program Files\AutoHotkey\AutoHotkey.exe
+  exe_path: "C:\\Users\\leviw\\AppData\\Local\\Programs\\AutoHotkey\\v2\\AutoHotkey64.exe"
+  paste_strategy: "type"   # "type" | "paste" | "auto"  (use "type" for Phone Link)

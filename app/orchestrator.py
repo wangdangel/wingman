@@ -11,6 +11,7 @@ from .model_client import propose_replies
 from .memory import DB
 from .profile_store import ensure_person_folder, save_profile, save_chat_history
 from .paste import paste_text
+from .display_detect import get_selected_hwnd
 
 log = logging.getLogger("wingman")
 
@@ -159,19 +160,13 @@ def persist_everything(cfg, name_guess, bio, bio_png, chat_text, suggestions):
 
 
 def paste_selected(cfg, text: str, paste_mode: str | None = None):
-    """
-    Paste a selected suggestion via AutoHotkey.
-    Honors a simple global throttle (behavior.throttle_seconds_per_chat).
-    Returns: (ok:bool, err:str|None)
-    """
     global _last_paste_ts
     throttle = int(cfg.get("behavior", {}).get("throttle_seconds_per_chat", 0)) or 0
-    now = time.time()
-    if throttle > 0 and (now - _last_paste_ts) < throttle:
-        remain = int(throttle - (now - _last_paste_ts))
-        return False, f"Throttled. Try again in {max(remain, 1)}s."
-
-    ok, err = paste_text(text, mode=paste_mode, window_title="Phone Link")
+    ...
+    resolved = paste_mode or cfg.get("target", {}).get("paste_mode", "focus_phone_link")
+    hwnd = get_selected_hwnd()
+    ok, err = paste_text(text, mode=resolved, window_title="Phone Link", hwnd=hwnd)
     if ok:
         _last_paste_ts = time.time()
     return ok, err
+

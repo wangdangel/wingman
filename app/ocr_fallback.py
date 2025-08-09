@@ -2,76 +2,36 @@
 import os
 import ctypes
 from ctypes import wintypes
-import win32gui, win32con, win32api
+import win32gui
 from mss import mss
 from PIL import Image
 import pytesseract
-from .util import load_config
 
-# ---------- DPI awareness (so GetWindowRect matches screen pixels) ----------
+from .util import load_config
+from .dx_capture import grab_window_region
+
+# ---------- Make the process DPI-aware (so rects are real pixels) ----------
 def _set_dpi_awareness():
     try:
-        # Try per-monitor v2 (Windows 10+)
         user32 = ctypes.windll.user32
         user32.SetProcessDpiAwarenessContext.restype = ctypes.c_bool
         user32.SetProcessDpiAwarenessContext.argtypes = [ctypes.c_void_p]
-        DPI_AWARENESS_CONTEXT_PER_MONITOR_AWARE_V2 = ctypes.c_void_p(-4)  # (HANDLE)-4
+        DPI_AWARENESS_CONTEXT_PER_MONITOR_AWARE_V2 = ctypes.c_void_p(-4)
         user32.SetProcessDpiAwarenessContext(DPI_AWARENESS_CONTEXT_PER_MONITOR_AWARE_V2)
         return
     except Exception:
         pass
     try:
-        # Fallback: Shcore (Windows 8.1+)
         shcore = ctypes.WinDLL("Shcore")
         shcore.SetProcessDpiAwareness.argtypes = [ctypes.c_int]
-        # 2 = PROCESS_PER_MONITOR_DPI_AWARE
-        shcore.SetProcessDpiAwareness(2)
-        return
+        shcore.SetProcessDpiAwareness(2)  # PER_MONITOR_DPI_AWARE
     except Exception:
-        pass
-    try:
-        # Last resort
-        ctypes.windll.user32.SetProcessDPIAware()
-    except Exception:
-        pass
+        try:
+            ctypes.windll.user32.SetProcessDPIAware()
+        except Exception:
+            pass
 
 _set_dpi_awareness()
-
-# ---------- Helpers ----------
-def _get_window_rect(hwnd):
-    # Physical pixels (with DPI awareness set above)
-    x1, y1, x2, y2 = win32gui.GetWindowRect(hwnd)
-    return x1, y1, x2, y2
-
-def _get_monitor_rect_from_hwnd(hwnd):
-    MONITOR_DEFAULTTONEAREST = 2
-    hmon = win32api.MonitorFromWindow(hwnd, MONITOR_DEFAULTTONEAREST)
-    info = win32api.GetMonitorInfo(hmon)
-    # 'Monitor' key gives full monitor area (left, top, right, bottom)
-    return info['Monitor']
-
-def _intersect(a, b):
-    ax1, ay1, ax2, ay2 = a
-    bx1, by1, bx2, by2 = b
-    left, top = max(ax1, bx1), max(ay1, by1)
-    right, bottom = min(ax2, bx2), min(ay2, by2)
-    if right <= left or bottom <= top:
-        return None
-    return (left, top, right, bottom)
-
-def _safe_region_from_pct(hwnd, crop_pct):
-    # Calculate region from the WINDOW rect, then clamp to that monitor
-    wx1, wy1, wx2, wy2 = _get_window_rect(hwnd)
-    ww, wh = wx2 - wx1, wy2 - wy1
-    left   = int(wx1 + crop_pct['left']   * ww)
-    top    = int(wy1 + crop_pct['top']    * wh)
-    right  = int(wx1 + crop_pct['right']  * ww)
-    bottom = int(wy1 + crop_pct['bottom'] * wh)
-
-    # Clamp to monitor bounds to avoid off-screen issues on mixed DPI
-    mx1, my1, mx2, my2 = _get_monitor_rect_from_hwnd(hwnd)
-    region = _intersect((left, top, right, bottom), (mx1, my1, mx2, my2))
-    return region  # (left, top, right, bottom) or None
 
 def _ensure_tesseract_cmd():
     try:
@@ -82,26 +42,68 @@ def _ensure_tesseract_cmd():
     except Exception:
         pass
 
-# ---------- Main capture API ----------
-def screenshot_region(hwnd, crop_pct):
-    region = _safe_region_from_pct(hwnd, crop_pct)
-    if not region:
-        # as a fallback, capture the whole window bounds
-        region = _get_window_rect(hwnd)
-    left, top, right, bottom = region
-    width, height = max(1, right - left), max(1, bottom - top)
+def _window_rect(hwnd):
+    x1, y1, x2, y2 = win32gui.GetWindowRect(hwnd)
+    return x1, y1, x2, y2
 
-    with mss() as sct:
-        # mss expects absolute virtual-screen coords; negatives are OK on multi-monitor
-        raw = sct.grab({"left": left, "top": top, "width": width, "height": height})
-        pil = Image.frombytes("RGB", raw.size, raw.rgb)
-    return pil
+def _region_abs_from_cfg(hwnd, crop_pct):
+    """
+    Decide what to capture:
+    - If scraping.capture.force_full_window is true OR crop_pct is None,
+      return the full window rect.
+    - Otherwise compute the % crop.
+    """
+    cfg = load_config()
+    cap = cfg.get("scraping", {}).get("capture", {})
+    if cap.get("force_full_window", False) or crop_pct is None:
+        return _window_rect(hwnd)
+
+    # allow a sentinel "full" dict too (left=0,top=0,right=1,bottom=1)
+    if isinstance(crop_pct, dict):
+        if (
+            abs(crop_pct.get("left", 0.0) - 0.0) < 1e-6
+            and abs(crop_pct.get("top", 0.0) - 0.0) < 1e-6
+            and abs(crop_pct.get("right", 1.0) - 1.0) < 1e-6
+            and abs(crop_pct.get("bottom", 1.0) - 1.0) < 1e-6
+        ):
+            return _window_rect(hwnd)
+
+    # percentage crop relative to the window
+    x1, y1, x2, y2 = _window_rect(hwnd)
+    w, h = max(1, x2 - x1), max(1, y2 - y1)
+    left   = int(x1 + crop_pct["left"]   * w)
+    top    = int(y1 + crop_pct["top"]    * h)
+    right  = int(x1 + crop_pct["right"]  * w)
+    bottom = int(y1 + crop_pct["bottom"] * h)
+    return (left, top, right, bottom)
+
+def screenshot_region(hwnd, crop_pct):
+    """
+    Capture a region (or full window) using DirectX (dxcam) first,
+    with MSS as a fallback.
+    """
+    region_abs = _region_abs_from_cfg(hwnd, crop_pct)
+
+    # Try DX (handles UWP/streamed surfaces)
+    try:
+        return grab_window_region(hwnd, region_abs)
+    except Exception:
+        # Fallback to GDI screen grab; may be black on some surfaces
+        left, top, right, bottom = region_abs
+        with mss() as sct:
+            raw = sct.grab({
+                "left": left,
+                "top": top,
+                "width": max(1, right - left),
+                "height": max(1, bottom - top),
+            })
+            return Image.frombytes("RGB", raw.size, raw.rgb)
 
 def ocr_text(pil_image, lang="eng"):
     _ensure_tesseract_cmd()
     return pytesseract.image_to_string(pil_image, lang=lang)
 
 def ocr_window_region(hwnd, crop_pct, lang="eng"):
-    pil = screenshot_region(hwnd, crop_pct)
-    text = ocr_text(pil, lang=lang)
-    return text, pil
+    img = screenshot_region(hwnd, crop_pct)
+    text = ocr_text(img, lang=lang)
+    return text, img

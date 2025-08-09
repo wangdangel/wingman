@@ -45,3 +45,46 @@ Traceback (most recent call last):
     _CoCreateInstance(byref(clsid), punkouter, clsctx, byref(iid), byref(p))
   File "_ctypes/callproc.c", line 1000, in GetResult
 OSError: [WinError -2147221008] CoInitialize has not been called
+2025-08-08 16:55:27,764 [ERROR] wingman: Background task error
+Traceback (most recent call last):
+  File "C:\code\wingman\app\ui.py", line 265, in _run_and_finish
+    result = work_fn()
+             ^^^^^^^^^
+  File "C:\code\wingman\app\ui.py", line 153, in work
+    def work(): return warm_model()
+                       ^^^^^^^^^^^^
+  File "C:\code\wingman\app\model_client.py", line 74, in warm_model
+    resp = _ollama_chat(messages)
+           ^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\code\wingman\app\model_client.py", line 66, in _ollama_chat
+    raise RuntimeError(f"Ollama chat failed after retries: {last_err}")
+RuntimeError: Ollama chat failed after retries: ollama status 404: {"error":"model \"gpt-oss:latest\" not found, try pulling it first"}
+2025-08-08 17:19:40,533 [ERROR] wingman: Background task error
+Traceback (most recent call last):
+  File "C:\code\wingman\app\model_client.py", line 93, in propose_replies
+    msg = _ollama_chat(messages)
+          ^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\code\wingman\app\model_client.py", line 66, in _ollama_chat
+    raise RuntimeError(f"Ollama chat failed after retries: {last_err}")
+RuntimeError: Ollama chat failed after retries: ollama status 404: {"error":"model \"gpt-oss:latest\" not found, try pulling it first"}
+
+During handling of the above exception, another exception occurred:
+
+Traceback (most recent call last):
+  File "C:\code\wingman\app\ui.py", line 363, in _run_and_finish
+    result = work_fn()
+             ^^^^^^^^^
+  File "C:\code\wingman\app\ui.py", line 273, in work
+    return generate(self.cfg, self.chat_text, self.bio_text)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\code\wingman\app\orchestrator.py", line 101, in generate
+    return propose_replies(
+           ^^^^^^^^^^^^^^^^
+  File "C:\code\wingman\app\model_client.py", line 96, in propose_replies
+    warm_model()
+  File "C:\code\wingman\app\model_client.py", line 74, in warm_model
+    resp = _ollama_chat(messages)
+           ^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\code\wingman\app\model_client.py", line 66, in _ollama_chat
+    raise RuntimeError(f"Ollama chat failed after retries: {last_err}")
+RuntimeError: Ollama chat failed after retries: ollama status 404: {"error":"model \"gpt-oss:latest\" not found, try pulling it first"}

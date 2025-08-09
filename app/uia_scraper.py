@@ -1,5 +1,6 @@
 # app/uia_scraper.py
 import uiautomation as uia
+from .display_detect import find_phone_link_hwnd
 
 PHONE_TITLES = ["Phone Link", "Link to Windows", "Your Phone"]
 
@@ -14,30 +15,30 @@ except AttributeError:
 
 def _with_uia(fn):
     def wrapper(*args, **kwargs):
-        # Ensure COM/UIA is initialized in THIS thread
         with UIA_INIT():
             return fn(*args, **kwargs)
     return wrapper
 
-@_with_uia
-def get_phone_window(timeout=0.8):
-    # Try name regex first
+def _get_window_control(selected_hwnd=None, timeout=0.8):
+    if selected_hwnd:
+        try:
+            return uia.ControlFromHandle(selected_hwnd)
+        except Exception:
+            pass
+    # Fallback by title regex
     w = uia.WindowControl(searchDepth=8, NameRegex="(Phone Link|Link to Windows|Your Phone)")
     if w.Exists(timeout, 0):
         return w
-    # Fallback: scan top-level windows
-    root = uia.GetRootControl()
-    for win in root.GetChildren():
+    # Final fallback: from discovered hwnd
+    hwnd = find_phone_link_hwnd()
+    if hwnd:
         try:
-            name = (win.Name or "")
+            return uia.ControlFromHandle(hwnd)
         except Exception:
-            continue
-        if isinstance(win, uia.WindowControl) and any(t in name for t in PHONE_TITLES):
-            return win
+            return None
     return None
 
 def _iter_descendants(ctrl, depth=0, max_depth=5):
-    """Traverse using GetChildren() (FindAll doesn't exist here)."""
     if depth > max_depth or ctrl is None:
         return
     try:
@@ -61,47 +62,38 @@ def _collect_text(ctrl, max_depth=5):
     return lines
 
 @_with_uia
-def read_chat_text():
-    """Find a container with lots of TextControls (the thread area)."""
-    w = get_phone_window()
+def read_chat_text(selected_hwnd=None):
+    w = _get_window_control(selected_hwnd)
     if not w:
         return None
-
     candidates = []
     for node in _iter_descendants(w, max_depth=4):
         if isinstance(node, (uia.ListControl, uia.PaneControl, uia.GroupControl)):
             candidates.append(node)
-
-    best_text = None
-    best_score = -1
+    best_text, best_score = None, -1
     for c in candidates:
         lines = _collect_text(c, max_depth=2)
-        score = len(lines)
-        if score > best_score:
-            best_score = score
+        if len(lines) > best_score:
+            best_score = len(lines)
             best_text = lines
-
     if best_text and best_score >= 8:
         return "\n".join(best_text)
     return None
 
 @_with_uia
-def read_profile_text():
-    """Heuristic: find a smaller/denser text block likely to be the profile/bio area."""
-    w = get_phone_window()
+def read_profile_text(selected_hwnd=None):
+    w = _get_window_control(selected_hwnd)
     if not w:
         return None
-
     blocks = []
     for node in _iter_descendants(w, max_depth=3):
         if isinstance(node, (uia.PaneControl, uia.GroupControl)):
             lines = _collect_text(node, max_depth=1)
             if 5 <= len(lines) <= 200:
                 text = "\n".join(lines)
-                if len(text) < 3000:  # avoid whole chat transcripts
+                if len(text) < 3000:
                     blocks.append((len(lines), text))
-
     if blocks:
-        blocks.sort(key=lambda t: t[0])  # prefer smaller blocks (bios)
+        blocks.sort(key=lambda t: t[0])
         return blocks[0][1]
     return None
