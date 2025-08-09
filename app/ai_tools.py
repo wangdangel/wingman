@@ -1,5 +1,4 @@
-# app/ai_tools.py
-import json, requests, os
+import json, requests
 from typing import List, Dict, Any, Tuple, Optional
 from .util import load_config
 from .desktop_control import focus_window, type_text, press_enter
@@ -56,6 +55,10 @@ def _call_tool(name: str, args: Dict[str, Any]) -> Dict[str, Any]:
     return {"ok": False, "error": f"Unknown tool {name}"}
 
 def run_chat_with_tools(system_prompt: str, user_prompt: str, model_override: Optional[str]=None) -> Tuple[bool, str]:
+    """
+    Returns (did_tools_run, assistant_text).
+    did_tools_run==True means at least one tool was invoked successfully.
+    """
     cfg = load_config()
     base = cfg["model"].get("base_url","http://localhost:11434").rstrip("/")
     model = model_override or cfg["model"]["model_name"]
@@ -65,6 +68,7 @@ def run_chat_with_tools(system_prompt: str, user_prompt: str, model_override: Op
         {"role":"system","content": system_prompt},
         {"role":"user","content": user_prompt}
     ]
+    did_tools = False
 
     while True:
         payload = {
@@ -72,10 +76,10 @@ def run_chat_with_tools(system_prompt: str, user_prompt: str, model_override: Op
           "messages": messages,
           "tools": TOOLS,
           "tool_choice": "auto",
-          "temperature": cfg["model"].get("temperature", 0.6),
-          "max_tokens": cfg["model"].get("max_tokens", 512)
+          "temperature": cfg["model"].get("temperature", 0.2),
+          "max_tokens": cfg["model"].get("max_tokens", 256)
         }
-        # Try OpenAI-compatible first
+        # Try OpenAI-compatible
         try:
             r = requests.post(f"{base}/v1/chat/completions", json=payload, timeout=timeout)
             if r.status_code == 404:
@@ -85,26 +89,38 @@ def run_chat_with_tools(system_prompt: str, user_prompt: str, model_override: Op
             choice = data["choices"][0]
             msg = choice["message"]
         except Exception:
-            # Fallback: Ollama native
-            r = requests.post(f"{base}/api/chat", json={
-                "model": model,
-                "messages": messages,
-                "stream": False,
-                "options": {"temperature": cfg["model"].get("temperature", 0.6)}
-            }, timeout=timeout)
-            r.raise_for_status()
-            out = r.json()
-            # No native tool-calls here; just return the text
-            return True, out.get("message", {}).get("content", "")
+            # No tools path. Fall back to plain chat; no desktop actions performed.
+            try:
+                r2 = requests.post(f"{base}/api/chat", json={
+                    "model": model,
+                    "messages": messages,
+                    "stream": False,
+                    "options": {"temperature": cfg["model"].get("temperature", 0.2)}
+                }, timeout=timeout)
+                r2.raise_for_status()
+                out = r2.json()
+                return False, out.get("message", {}).get("content", "") or out.get("response", "") or ""
+            except Exception:
+                return False, ""
 
         tool_calls = msg.get("tool_calls")
         if tool_calls:
             for tc in tool_calls:
                 fn = tc["function"]["name"]
-                args = json.loads(tc["function"].get("arguments") or "{}")
+                try:
+                    args = json.loads(tc["function"].get("arguments") or "{}")
+                except Exception:
+                    args = {}
                 result = _call_tool(fn, args)
-                messages.append({"role":"tool", "tool_call_id": tc["id"], "name": fn, "content": json.dumps(result)})
-            continue  # loop lets model react to tool results
+                did_tools = True or did_tools
+                messages.append({
+                    "role":"tool",
+                    "tool_call_id": tc.get("id") or "",
+                    "name": fn,
+                    "content": json.dumps(result)
+                })
+            # Loop again so model can react to results
+            continue
 
-        # No tool call -> return the assistant’s text
-        return True, msg.get("content") or ""
+        # No further tool calls; return.
+        return did_tools, (msg.get("content") or "")
